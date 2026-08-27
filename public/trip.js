@@ -12,7 +12,11 @@ const WEATHER_TOOL = {
     required: ["city"],
   },
   execute: async (input) => {
-    const res = await fetch(`/api/weather?city=${encodeURIComponent(input.city)}`);
+    // Relative, not "/api/weather..." -- this page is served under a path
+    // prefix in production (ads.getlulu.dev/webmcp/), and a leading slash
+    // would resolve to the domain root instead. Resolves correctly against
+    // the page's own URL either way (local root deploy or prefixed prod).
+    const res = await fetch(`api/weather?city=${encodeURIComponent(input.city)}`);
     return res.json();
   },
 };
@@ -34,8 +38,12 @@ const FLIGHTS_TOOL = {
     const result = await generateMockFlights(input.origin, input.destination, input.date);
     // Explicit category, not automatic tool-name matching -- confirmed
     // live inventory against this exact category (see plan Global
-    // Constraints for the verification note).
+    // Constraints for the verification note). endpoint is relative for the
+    // same path-prefix reason as the weather fetch above -- overrides
+    // sponsoredSlotClient's own tested default ("/api/lulu-ads/sponsored-slot",
+    // correct for a root deployment, not this prefixed one).
     const sponsored = await sponsoredSlotClient({
+      endpoint: "api/lulu-ads/sponsored-slot",
       context: { tool: "search_flights", category: "travel.insurance" },
     });
     return { ...result, sponsored };
