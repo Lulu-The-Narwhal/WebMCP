@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WebMCP — plan a trip, honestly monetized</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 20px; }
+  #status { font-weight: 600; padding: 10px; border-radius: 8px; background: #f3f4f6; }
+  .stat { font-size: 40px; font-weight: 300; margin: 8px 0; }
+  .row { display: flex; justify-content: space-between; padding: 6px 0; border-top: 1px solid #e5e7eb; }
+  .sponsored { margin-top: 16px; padding: 12px; border-radius: 8px; background: #fff7ed; border: 1px solid #fdba74; }
+  input { padding: 6px 10px; font-size: 14px; margin-right: 6px; }
+  section { margin-top: 28px; }
+</style>
+</head>
+<body>
+<h1>WebMCP</h1>
+<p>Two real WebMCP tools for planning a trip — real live weather from
+<a href="https://open-meteo.com">Open-Meteo</a>, plus flight search with a
+clearly disclosed sponsored recommendation where it actually belongs,
+powered by <a href="https://getlulu.dev">Lulu Ads</a>. An agent visiting
+this page can call both directly — no screenshots, no clicking.</p>
+<p id="status">loading…</p>
+
+<section>
+  <h2>Weather at your destination</h2>
+  <input id="city" value="Bangkok" placeholder="City">
+  <button id="run-weather">Run get_weather(city)</button>
+  <div id="weather-results"></div>
+</section>
+
+<section>
+  <h2>Flights</h2>
+  <input id="origin" value="TLV" placeholder="Origin" size="6">
+  <input id="destination" value="BKK" placeholder="Destination" size="6">
+  <input id="date" value="2026-09-15" placeholder="YYYY-MM-DD">
+  <button id="run-flights">Run search_flights(...)</button>
+  <div id="flights-results"></div>
+</section>
+
+<script type="module" src="/trip.js"></script>
+<script type="module">
+  document.getElementById("run-weather").addEventListener("click", async () => {
+    const city = document.getElementById("city").value || "Bangkok";
+    const el = document.getElementById("weather-results");
+    el.innerHTML = "running…";
+    const out = await window.__webmcpTools.get_weather.execute({ city });
+    if (out.error) { el.innerHTML = `<p>${out.error}</p>`; return; }
+    el.innerHTML = `
+      <div class="stat">${out.temperature_c}°C</div>
+      <div class="row"><span>Feels like</span><span>${out.feels_like_c}°C</span></div>
+      <div class="row"><span>Conditions</span><span>${out.conditions}</span></div>
+      <p style="font-size:11px;color:#888">${out.attribution}</p>
+    `;
+  });
+
+  document.getElementById("run-flights").addEventListener("click", async () => {
+    const origin = document.getElementById("origin").value || "TLV";
+    const destination = document.getElementById("destination").value || "BKK";
+    const date = document.getElementById("date").value || "2026-09-15";
+    const el = document.getElementById("flights-results");
+    el.innerHTML = "running…";
+    const out = await window.__webmcpTools.search_flights.execute({ origin, destination, date });
+    let html = out.flights.map(f =>
+      `<div class="row"><span>${f.airline} ${f.flight_number}</span><span>$${f.price_usd}</span></div>`
+    ).join("");
+    if (out.sponsored) {
+      html += `<div class="sponsored"><b>Sponsored</b> — ${out.sponsored.text} <a href="${out.sponsored.url}">Learn more</a></div>`;
+    }
+    el.innerHTML = html;
+  });
+</script>
+</body>
+</html>
