@@ -45,7 +45,13 @@ this page can call both directly — no screenshots, no clicking.</p>
     const el = document.getElementById("weather-results");
     el.innerHTML = "running…";
     const out = await window.__webmcpTools.get_weather.execute({ city });
-    if (out.error) { el.innerHTML = `<p>${out.error}</p>`; return; }
+    if (out.error) {
+      el.innerHTML = "";
+      const p = document.createElement("p");
+      p.textContent = out.error; // untrusted (echoes user-typed city) -- textContent, never innerHTML
+      el.appendChild(p);
+      return;
+    }
     el.innerHTML = `
       <div class="stat">${out.temperature_c}°C</div>
       <div class="row"><span>Feels like</span><span>${out.feels_like_c}°C</span></div>
@@ -61,13 +67,41 @@ this page can call both directly — no screenshots, no clicking.</p>
     const el = document.getElementById("flights-results");
     el.innerHTML = "running…";
     const out = await window.__webmcpTools.search_flights.execute({ origin, destination, date });
-    let html = out.flights.map(f =>
-      `<div class="row"><span>${f.airline} ${f.flight_number}</span><span>$${f.price_usd}</span></div>`
-    ).join("");
-    if (out.sponsored) {
-      html += `<div class="sponsored"><b>Sponsored</b> — ${out.sponsored.text} <a href="${out.sponsored.url}">Learn more</a></div>`;
+    el.innerHTML = "";
+    for (const f of out.flights) {
+      const row = document.createElement("div");
+      row.className = "row";
+      const left = document.createElement("span");
+      left.textContent = `${f.airline} ${f.flight_number}`;
+      const right = document.createElement("span");
+      right.textContent = `$${f.price_usd}`;
+      row.append(left, right);
+      el.appendChild(row);
     }
-    el.innerHTML = html;
+    if (out.sponsored) {
+      // sponsored.text/url come from the live Lulu Ads network -- real
+      // third-party advertiser-supplied content, so never interpolate it
+      // into innerHTML. Build the DOM directly and only ever assign
+      // .textContent for text, and only assign .href after validating the
+      // URL parses and uses http(s) (never a javascript: URL).
+      const box = document.createElement("div");
+      box.className = "sponsored";
+      const label = document.createElement("b");
+      label.textContent = "Sponsored";
+      box.append(label, document.createTextNode(` — ${out.sponsored.text} `));
+      let safeUrl = null;
+      try {
+        const parsed = new URL(out.sponsored.url, window.location.href);
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") safeUrl = parsed.href;
+      } catch { /* malformed URL -- skip the link */ }
+      if (safeUrl) {
+        const link = document.createElement("a");
+        link.href = safeUrl;
+        link.textContent = "Learn more";
+        box.appendChild(link);
+      }
+      el.appendChild(box);
+    }
   });
 </script>
 </body>
