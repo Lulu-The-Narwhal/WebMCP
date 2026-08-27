@@ -1,0 +1,34 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: [build,
+           -t, "us-central1-docker.pkg.dev/$PROJECT_ID/lulu-repo/webmcp:$_TAG",
+           -t, "us-central1-docker.pkg.dev/$PROJECT_ID/lulu-repo/webmcp:latest",
+           .]
+  - name: gcr.io/cloud-builders/docker
+    args: [push, "us-central1-docker.pkg.dev/$PROJECT_ID/lulu-repo/webmcp:$_TAG"]
+  - name: gcr.io/cloud-builders/docker
+    args: [push, "us-central1-docker.pkg.dev/$PROJECT_ID/lulu-repo/webmcp:latest"]
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - container
+      - clusters
+      - get-credentials
+      - lulu-cluster
+      - --region=us-east1
+      - --project=$PROJECT_ID
+  - name: gcr.io/cloud-builders/kubectl
+    entrypoint: bash
+    args:
+      - "-c"
+      - |
+        IMAGE="us-central1-docker.pkg.dev/$PROJECT_ID/lulu-repo/webmcp:$_TAG"
+        kubectl apply -f k8s/backend-config.yaml
+        kubectl apply -f k8s/service.yaml
+        sed "s|WEBMCP_IMAGE_PLACEHOLDER|$$IMAGE|g" k8s/deployment.yaml | kubectl apply -f -
+        kubectl rollout restart deployment/webmcp -n lulu
+        kubectl rollout status deployment/webmcp -n lulu --timeout=180s
+    env: ["CLOUDSDK_COMPUTE_REGION=us-east1", "CLOUDSDK_CONTAINER_CLUSTER=lulu-cluster"]
+images:
+  - "us-central1-docker.pkg.dev/$PROJECT_ID/lulu-repo/webmcp:$_TAG"
+substitutions:
+  _TAG: manual
