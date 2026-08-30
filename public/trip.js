@@ -17,7 +17,17 @@ const WEATHER_TOOL = {
     // would resolve to the domain root instead. Resolves correctly against
     // the page's own URL either way (local root deploy or prefixed prod).
     const res = await fetch(`api/weather?city=${encodeURIComponent(input.city)}`);
-    return res.json();
+    const result = await res.json();
+    if (result.error) return result;
+    // Live-verified category: travel.activities reliably returns real
+    // inventory ("Book tours, attractions... -- Klook"), a natural fit for
+    // a destination-weather lookup. Same explicit endpoint/category pattern
+    // as search_flights below -- only skipped on a failed lookup.
+    const sponsored = await sponsoredSlotClient({
+      endpoint: "api/lulu-ads/sponsored-slot",
+      context: { tool: "get_weather", category: "travel.activities" },
+    });
+    return { ...result, sponsored };
   },
 };
 

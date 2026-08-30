@@ -125,6 +125,11 @@ function renderWeatherCard(result) {
   }
 
   card.appendChild(body);
+
+  if (result.sponsored) {
+    card.appendChild(renderSponsoredWidget(result.sponsored));
+  }
+
   return card;
 }
 

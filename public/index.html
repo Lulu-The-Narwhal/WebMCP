@@ -183,6 +183,7 @@
       </div>
       <div id="weather-results"></div>
     </div>
+    <div id="weather-sponsored"></div>
   </div>
 </section>
 
@@ -209,10 +210,82 @@
 
 <script type="module" src="trip.js"></script>
 <script type="module">
+  function safeUrl(raw) {
+    try {
+      const parsed = new URL(raw, window.location.href);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.href;
+    } catch { /* malformed -- treat as absent */ }
+    return null;
+  }
+  function safeImgUrl(raw) {
+    try {
+      const parsed = new URL(raw, window.location.href);
+      if (parsed.protocol === "https:" || parsed.protocol === "data:") return parsed.href;
+    } catch { /* malformed -- treat as absent */ }
+    return null;
+  }
+
+  // sponsored.text/url/logoUrl come from the live Lulu Ads network -- real
+  // third-party advertiser-supplied content, so never interpolate it into
+  // innerHTML. Build the DOM directly, only ever assign .textContent for
+  // text, and only assign .href/.src after validating the URL parses and
+  // uses http(s) or data: (logos only) -- never a javascript: URL. Shared
+  // by both the weather and flights handlers below; same markup as
+  // demo.js's renderSponsoredWidget.
+  function renderSponsoredWidget(sponsored) {
+    const card = document.createElement("div");
+    card.className = "sponsored-widget";
+
+    const eyebrow = document.createElement("div");
+    eyebrow.className = "eyebrow";
+    eyebrow.textContent = "Sponsored";
+    card.appendChild(eyebrow);
+
+    const row = document.createElement("div");
+    row.className = "row";
+
+    const tile = document.createElement("span");
+    tile.className = "tile";
+    const logoUrl = sponsored.logoUrl ? safeImgUrl(sponsored.logoUrl) : null;
+    if (logoUrl) {
+      const img = document.createElement("img");
+      img.src = logoUrl;
+      img.alt = "";
+      tile.appendChild(img);
+    } else {
+      tile.textContent = (sponsored.text?.trim()?.charAt(0) || "L").toUpperCase();
+    }
+    row.appendChild(tile);
+
+    const text = document.createElement("span");
+    text.className = "text";
+    text.textContent = `${sponsored.text} `;
+    const link = safeUrl(sponsored.url);
+    if (link) {
+      const a = document.createElement("a");
+      a.href = link;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = "Learn more →";
+      text.appendChild(a);
+    }
+    row.appendChild(text);
+    card.appendChild(row);
+
+    const footer = document.createElement("div");
+    footer.className = "footer";
+    footer.append("Powered by ", Object.assign(document.createElement("b"), { textContent: "Lulu Ads" }));
+    card.appendChild(footer);
+
+    return card;
+  }
+
   document.getElementById("run-weather").addEventListener("click", async () => {
     const city = document.getElementById("city").value || "Bangkok";
     const el = document.getElementById("weather-results");
+    const sponsoredEl = document.getElementById("weather-sponsored");
     el.innerHTML = "running…";
+    sponsoredEl.innerHTML = "";
     const out = await window.__webmcpTools.get_weather.execute({ city });
     if (out.error) {
       el.innerHTML = "";
@@ -242,22 +315,10 @@
     attr.className = "lw-attr";
     attr.textContent = out.attribution;
     el.appendChild(attr);
+    if (out.sponsored) {
+      sponsoredEl.appendChild(renderSponsoredWidget(out.sponsored));
+    }
   });
-
-  function safeUrl(raw) {
-    try {
-      const parsed = new URL(raw, window.location.href);
-      if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.href;
-    } catch { /* malformed -- treat as absent */ }
-    return null;
-  }
-  function safeImgUrl(raw) {
-    try {
-      const parsed = new URL(raw, window.location.href);
-      if (parsed.protocol === "https:" || parsed.protocol === "data:") return parsed.href;
-    } catch { /* malformed -- treat as absent */ }
-    return null;
-  }
 
   document.getElementById("run-flights").addEventListener("click", async () => {
     const origin = document.getElementById("origin").value || "TLV";
@@ -280,57 +341,7 @@
       resultsEl.appendChild(row);
     }
     if (out.sponsored) {
-      // sponsored.text/url/logoUrl come from the live Lulu Ads network --
-      // real third-party advertiser-supplied content, so never interpolate
-      // it into innerHTML. Build the DOM directly, only ever assign
-      // .textContent for text, and only assign .href/.src after validating
-      // the URL parses and uses http(s) or data: (logos only) -- never a
-      // javascript: URL. Same SponsoredWidgetCard markup as demo.html.
-      const card = document.createElement("div");
-      card.className = "sponsored-widget";
-
-      const eyebrow = document.createElement("div");
-      eyebrow.className = "eyebrow";
-      eyebrow.textContent = "Sponsored";
-      card.appendChild(eyebrow);
-
-      const row = document.createElement("div");
-      row.className = "row";
-
-      const tile = document.createElement("span");
-      tile.className = "tile";
-      const logoUrl = out.sponsored.logoUrl ? safeImgUrl(out.sponsored.logoUrl) : null;
-      if (logoUrl) {
-        const img = document.createElement("img");
-        img.src = logoUrl;
-        img.alt = "";
-        tile.appendChild(img);
-      } else {
-        tile.textContent = (out.sponsored.text?.trim()?.charAt(0) || "L").toUpperCase();
-      }
-      row.appendChild(tile);
-
-      const text = document.createElement("span");
-      text.className = "text";
-      text.textContent = `${out.sponsored.text} `;
-      const link = safeUrl(out.sponsored.url);
-      if (link) {
-        const a = document.createElement("a");
-        a.href = link;
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        a.textContent = "Learn more →";
-        text.appendChild(a);
-      }
-      row.appendChild(text);
-      card.appendChild(row);
-
-      const footer = document.createElement("div");
-      footer.className = "footer";
-      footer.append("Powered by ", Object.assign(document.createElement("b"), { textContent: "Lulu Ads" }));
-      card.appendChild(footer);
-
-      sponsoredEl.appendChild(card);
+      sponsoredEl.appendChild(renderSponsoredWidget(out.sponsored));
     }
   });
 </script>

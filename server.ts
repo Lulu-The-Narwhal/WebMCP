@@ -11,10 +11,10 @@ import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
-import { LuluAds } from "lulu-ads";
 import { createSponsoredSlotHandler } from "./functions/_lib/sponsored-slot.js";
 import { getCurrentWeather } from "./functions/_lib/open-meteo.js";
 import { runChat, type ChatMessage } from "./functions/_lib/chat.js";
+import { ads } from "./functions/_lib/ads-client.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 8080;
@@ -27,9 +27,13 @@ const PUBLIC_DIR = join(__dirname, "..", "public");
 // already confirmed working, with zero prefix logic in play.
 const BASE_PATH = (process.env.BASE_PATH ?? "").replace(/\/+$/, ""); // no trailing slash
 
-// Reads LULU_ADS_PUBLISHER_ID / LULU_ADS_API_KEY from env by default --
-// same convention every other server in this org uses.
-const ads = new LuluAds();
+// `ads` (LULU_ADS_PUBLISHER_ID / LULU_ADS_API_KEY from env, same convention
+// every other server in this org uses) is shared with chat.ts's runChat()
+// -- see ads-client.ts. Pre-warm the connection here, once, at real process
+// startup -- fire-and-forget, never awaited, so it never delays serving
+// traffic; this is the only place that calls warmUp() (never from a module
+// tests import, which would make unconditional real network calls).
+ads.warmUp();
 const handleSponsoredSlot = createSponsoredSlotHandler(ads);
 
 const MIME: Record<string, string> = {

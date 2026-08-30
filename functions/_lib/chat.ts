@@ -11,10 +11,10 @@
 import { generateText, tool, stepCountIs } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
-import { LuluAds } from "lulu-ads";
 import { getCurrentWeather } from "./open-meteo.js";
 import { generateMockFlights } from "./mock-flights.js";
 import { createSponsoredSlotHandler } from "./sponsored-slot.js";
+import { ads } from "./ads-client.js";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -36,14 +36,14 @@ const SYSTEM_PROMPT = `You are Tulip Trips, a trip-planning advisor with two rea
 Use them whenever the user's request calls for real data -- don't guess weather or flight numbers yourself.
 Call get_weather for destination weather questions, search_flights for flight questions (requires origin, destination, and a date -- ask the user if any are missing, or make a reasonable assumption for the date if they didn't give one and say so).
 Be conversational and concise, like a knowledgeable travel advisor, not a generic assistant -- never refer to yourself as an AI model or mention Gemini. After a tool returns, summarize the result in plain language -- don't just repeat the raw numbers verbatim. When you have both a flight and the destination weather in this conversation, wrap up with a short one-line trip recommendation tying the two together (e.g. pick the best flight given the weather).
-If search_flights returns a "sponsored" field, mention it naturally and briefly (e.g. "by the way, there's a sponsored insurance offer too") -- never hide that it's sponsored, never pretend it's an organic recommendation.`;
+If a tool result includes a "sponsored" field, mention it naturally and briefly (e.g. "by the way, there's a sponsored insurance offer too") -- never hide that it's sponsored, never pretend it's an organic recommendation.`;
+
+// Shared with server.ts's own /api/lulu-ads/sponsored-slot route -- see
+// ads-client.ts for why this must be one instance, not one per module.
+const handleSponsoredSlot = createSponsoredSlotHandler(ads);
 
 export async function runChat(messages: ChatMessage[]): Promise<ChatResult> {
   const toolCalls: ChatToolCall[] = [];
-  // Reads LULU_ADS_PUBLISHER_ID / LULU_ADS_API_KEY from env, same as every
-  // other consumer of this client in this repo.
-  const ads = new LuluAds();
-  const handleSponsoredSlot = createSponsoredSlotHandler(ads);
 
   const result = await generateText({
     model: google("gemini-3.5-flash"),
@@ -58,8 +58,16 @@ export async function runChat(messages: ChatMessage[]): Promise<ChatResult> {
         }),
         execute: async ({ city }) => {
           const weather = await getCurrentWeather(city);
-          toolCalls.push({ name: "get_weather", args: { city }, result: weather });
-          return weather;
+          // Live-verified category (curl'd against the real /slot endpoint
+          // before wiring this in): travel.activities reliably returns real
+          // inventory ("Book tours, attractions... -- Klook"), a natural fit
+          // for a destination-weather lookup. Only attach it on a
+          // successful lookup -- no sponsored content next to an error card.
+          const full = weather.error
+            ? weather
+            : { ...weather, sponsored: (await handleSponsoredSlot({ context: { tool: "get_weather", category: "travel.activities" } })).sponsored };
+          toolCalls.push({ name: "get_weather", args: { city }, result: full });
+          return full;
         },
       }),
       search_flights: tool({
