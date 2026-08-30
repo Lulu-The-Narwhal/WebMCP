@@ -46,7 +46,10 @@ test("createSponsoredSlotHandler calls LuluAds.sponsoredSlot with the request's 
   const handle = createSponsoredSlotHandler(ads);
   const result = await handle({ context: { tool: "search_flights", category: "travel.insurance" } });
 
-  expect(spy).toHaveBeenCalledWith({ context: { tool: "search_flights", category: "travel.insurance" } });
+  expect(spy).toHaveBeenCalledWith({
+    context: { tool: "search_flights", category: "travel.insurance" },
+    timeoutMs: expect.any(Number),
+  });
   expect(result).toEqual({ sponsored });
 });
 
@@ -56,5 +59,5 @@ test("createSponsoredSlotHandler defaults to an empty context on a malformed bod
 
   const handle = createSponsoredSlotHandler(ads);
   expect(await handle(null)).toEqual({ sponsored: null });
-  expect(spy).toHaveBeenCalledWith({ context: {} });
+  expect(spy).toHaveBeenCalledWith({ context: {}, timeoutMs: expect.any(Number) });
 });

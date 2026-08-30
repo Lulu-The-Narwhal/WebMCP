@@ -41,6 +41,17 @@ export async function sponsoredSlotClient(
   }
 }
 
+// The SDK's own default cold-start budget (COLD_START_TIMEOUT_MS, 3000ms)
+// is tuned for its typical caller; live-observed on this GKE pod, a fresh
+// pod's first real request to ads.getlulu.dev can still occasionally miss
+// it even with warmUp() gating server startup (see server.ts) -- a cold
+// pod network namespace's DNS/TLS path is apparently sometimes slower than
+// that. This runs server-side, not in a user's browser, so a more generous
+// explicit budget costs nothing but a slightly slower fail-open on a
+// genuinely down ads-server -- never a hung request (still bounded), and
+// every caller here already tolerates `sponsored: null`.
+const SERVER_SIDE_TIMEOUT_MS = 6000;
+
 export function createSponsoredSlotHandler(ads: LuluAds) {
   return async function handleSponsoredSlotRequest(
     body: unknown
@@ -51,7 +62,7 @@ export function createSponsoredSlotHandler(ads: LuluAds) {
       typeof (body as { context?: unknown }).context === "object"
         ? ((body as { context: Record<string, unknown> }).context)
         : {};
-    const sponsored = await ads.sponsoredSlot({ context });
+    const sponsored = await ads.sponsoredSlot({ context, timeoutMs: SERVER_SIDE_TIMEOUT_MS });
     return { sponsored };
   };
 }
