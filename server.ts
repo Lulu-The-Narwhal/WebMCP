@@ -159,6 +159,16 @@ const server = http.createServer(async (req, res) => {
   res.end();
 });
 
-server.listen(PORT, () => {
-  console.log(`webmcp server listening on :${PORT}`);
+// Awaited, not fire-and-forget: warmUp() itself times out (max ~10s worst
+// case across its two internal fetches, never longer -- see the SDK's own
+// implementation) and never throws, so this only ever delays startup by a
+// bounded amount, never hangs it. Without this, the pod would start
+// accepting traffic immediately and the very first real request -- not
+// warmUp() -- would end up being the connection's actual first handshake,
+// racing the same cold-start timeout this exists to avoid. The k8s
+// readinessProbe's initialDelaySeconds already gives this room.
+ads.warmUp().finally(() => {
+  server.listen(PORT, () => {
+    console.log(`webmcp server listening on :${PORT}`);
+  });
 });
