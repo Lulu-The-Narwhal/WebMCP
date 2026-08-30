@@ -4,111 +4,160 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WebMCP — plan a trip, honestly monetized</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* Brand tokens pulled directly from the real lulu-ads widget bundle
-     (python/lulu_ads/widgets.py's FRAME_HTML) -- not reinvented, so this
-     page actually reads as "by Lulu" instead of a generic demo shell. */
+  /* Real Lulu Ads marketing design system (ads-web/app/globals.css +
+     components/marketing-nav.tsx + components/cruip/sponsored-brand.tsx's
+     SponsoredWidgetCard, the actual production widget) -- not reinvented
+     for this repo. Dark background, Nunito display / DM Sans body, amber
+     #E07A00 accent, 20px card radius, floating light pill nav. Kept in
+     sync with demo.html's copy of the same tokens. */
   :root {
-    --lw-radius: 16px;
-    --lw-ink: #f5f2ee;
-    --lw-ink-soft: rgba(255,255,255,.72);
-    --lw-ink-faint: rgba(255,255,255,.5);
-    --lw-orange: #E8763C;
-    --lw-mono: "SF Mono", ui-monospace, Menlo, monospace;
+    --bg: #0A0A0A;
+    --fg: #FFFFFF;
+    --card: #141414;
+    --border: #2A2A2A;
+    --muted-fg: #A3A3A3;
+    --amber: #E07A00;
+    --amber-light: #F5A623;
+    --amber-dark: #B55E00;
+    --radius-lg: 20px;
+    --radius-full: 9999px;
+    --font-display: "Nunito", ui-rounded, system-ui, sans-serif;
+    --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, Menlo, monospace;
   }
   html, body {
-    background: #16140f;
+    background: var(--bg);
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-  body { color: var(--lw-ink); padding: 40px 20px 64px; }
+  body { color: var(--fg); padding: 0 20px 64px; }
   main { max-width: 640px; margin: 0 auto; }
-  a { color: var(--lw-orange); }
+  a { color: var(--amber); }
+  code { font-family: var(--font-mono); background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 5px; font-size: 12.5px; }
 
-  header { margin-bottom: 28px; }
-  .wordmark {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-    color: var(--lw-ink-faint); text-decoration: none;
+  nav.pill-nav {
+    position: sticky; top: 16px; z-index: 30;
+    max-width: 640px; margin: 16px auto 0; padding: 0; width: 100%; box-sizing: border-box;
   }
-  .wordmark b { color: var(--lw-orange); }
-  h1 { font-size: 28px; font-weight: 600; margin: 10px 0 8px; letter-spacing: -.01em; }
-  header p { color: var(--lw-ink-soft); font-size: 14.5px; line-height: 1.55; margin: 0; }
+  .pill-nav-inner {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    height: 56px; padding: 0 8px 0 16px; border-radius: var(--radius-lg);
+    background: rgba(255,255,255,.92); backdrop-filter: blur(6px);
+    box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 10px 24px -8px rgba(0,0,0,.25);
+  }
+  .pill-nav-brand { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+  .pill-nav-brand .dot { width: 9px; height: 9px; border-radius: 50%; background: linear-gradient(135deg, var(--amber-light), var(--amber-dark)); }
+  .pill-nav-brand span { font-family: var(--font-display); font-weight: 800; font-size: 15px; color: #171717; letter-spacing: -0.01em; }
+  .pill-nav-links { display: flex; align-items: center; gap: 4px; }
+  .pill-nav-links a {
+    font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: #525252;
+    text-decoration: none; padding: 8px 12px; border-radius: var(--radius-full);
+  }
+  .pill-nav-links a:hover { background: #F5F5F5; color: #171717; }
+  .pill-nav-links a.active { background: #171717; color: #fff; }
+
+  header { margin: 28px 0 28px; }
+  h1 { font-family: var(--font-display); font-size: 28px; font-weight: 800; margin: 0 0 8px; letter-spacing: -.03em; }
+  header p { color: var(--muted-fg); font-size: 14.5px; line-height: 1.55; margin: 0; }
 
   #status {
-    font-size: 12.5px; font-weight: 600; color: var(--lw-ink-soft);
-    padding: 9px 14px; border-radius: 10px; background: rgba(255,255,255,.06);
-    border: 1px solid rgba(255,255,255,.08); margin: 20px 0 0;
+    font-size: 12.5px; font-weight: 600; color: var(--muted-fg);
+    padding: 9px 14px; border-radius: 10px; background: var(--card);
+    border: 1px solid var(--border); margin: 20px 0 0;
   }
 
   .lw-card {
-    position: relative; margin-top: 20px; border-radius: var(--lw-radius); overflow: hidden;
-    background: linear-gradient(168deg, #2a2723 0%, #232019 100%);
-    box-shadow: 0 1px 2px rgba(0,0,0,.25), 0 10px 26px -12px rgba(0,0,0,.5);
+    margin-top: 20px; border-radius: var(--radius-lg); overflow: hidden;
+    background: var(--card); border: 1px solid var(--border);
   }
   .lw-body { padding: 20px 22px 18px; }
+  .tool-eyebrow-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
   .lw-eyebrow {
-    font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
-    color: var(--lw-ink-soft);
+    font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted-fg);
   }
-  .lw-controls { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .mcp-badge {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 9.5px; font-weight: 800;
+    letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.6);
+    border: 1px solid rgba(255,255,255,.14); border-radius: var(--radius-full);
+    padding: 3px 8px 3px 6px; flex-shrink: 0;
+  }
+  .mcp-badge .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--amber-light); }
+
+  .lw-controls { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   input {
-    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
-    color: var(--lw-ink); border-radius: 8px; padding: 8px 11px; font-size: 14px;
-    font-family: inherit;
+    background: rgba(255,255,255,.06); border: 1px solid var(--border);
+    color: var(--fg); border-radius: 10px; padding: 8px 11px; font-size: 14px;
+    font-family: var(--font-sans);
   }
-  input::placeholder { color: var(--lw-ink-faint); }
+  input::placeholder { color: #6B6B6B; }
   input#origin, input#destination { width: 64px; }
   input#date { width: 120px; }
   button {
-    background: linear-gradient(180deg, #F5A053 0%, #E8763C 55%, #D95F27 100%);
-    color: #fff; font-weight: 700; font-size: 13.5px; border: none; border-radius: 8px;
-    padding: 9px 16px; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+    background: linear-gradient(135deg, var(--amber-light) 0%, var(--amber) 50%, var(--amber-dark) 100%);
+    color: #fff; font-weight: 700; font-size: 13.5px; border: none; border-radius: 10px;
+    padding: 9px 16px; cursor: pointer; transition: filter .15s ease;
   }
-  button:hover { filter: brightness(1.05); }
+  button:hover { filter: brightness(1.08); }
 
-  .stat { font-size: 52px; font-weight: 300; line-height: 1.05; margin: 14px 0 4px; letter-spacing: -.02em; }
+  .stat { font-family: var(--font-display); font-size: 48px; font-weight: 800; line-height: 1.05; margin: 14px 0 4px; letter-spacing: -.02em; }
   .lw-row {
     display: flex; justify-content: space-between; gap: 12px; font-size: 13.5px;
-    color: var(--lw-ink-soft); padding: 8px 0; border-top: 1px solid rgba(255,255,255,.08);
+    color: var(--muted-fg); padding: 8px 0; border-top: 1px solid var(--border);
   }
-  .lw-row b, .lw-row span:last-child { color: var(--lw-ink); font-weight: 600; text-align: right; font-family: var(--lw-mono); }
-  .lw-attr { font-size: 10px; color: var(--lw-ink-faint); margin-top: 10px; }
+  .lw-row b, .lw-row span:last-child { color: var(--fg); font-weight: 600; text-align: right; font-family: var(--font-mono); }
+  .lw-attr { font-size: 10px; color: #6B6B6B; margin-top: 10px; }
 
-  /* Sponsored strip -- exact structure/colors from the real widget's
-     .lw-strip (python/lulu_ads/widgets.py), not a reinterpretation. */
-  .lw-strip {
-    display: flex; align-items: center; gap: 10px; padding: 10px 22px;
-    background: rgba(0,0,0,.30); font-size: 12.5px;
+  /* SponsoredWidgetCard, ported 1:1 from
+     components/cruip/sponsored-brand.tsx -- the actual live MCP Apps
+     widget every real sponsored slot renders as. */
+  .sponsored-widget {
+    margin: 0 22px 20px; border-radius: 14px; padding: 14px 16px;
+    background: linear-gradient(135deg, var(--amber-light) 0%, var(--amber) 55%, var(--amber-dark) 100%);
+    border: 1px solid rgba(255,255,255,.22);
+    box-shadow: 0 1px 2px rgba(0,0,0,.22), 0 10px 24px -10px rgba(224,122,0,.65);
+    color: #FFF8EC;
   }
-  .lw-strip .badge {
-    background: linear-gradient(180deg, #F5A053 0%, #E8763C 55%, #D95F27 100%);
-    color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .12em;
-    border-radius: 6px; padding: 4px 9px; flex-shrink: 0;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+  .sponsored-widget .eyebrow { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; opacity: .92; margin-bottom: 5px; }
+  .sponsored-widget .row { display: flex; align-items: flex-start; gap: 10px; }
+  .sponsored-widget .tile {
+    display: flex; height: 28px; width: 28px; flex-shrink: 0; align-items: center; justify-content: center;
+    border-radius: 8px; background: rgba(255,255,255,.9); font-weight: 800; color: var(--amber-dark);
+    font-size: 13px; overflow: hidden;
   }
-  .lw-logo {
-    width: 26px; height: 26px; border-radius: 7px; background: #fff;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; overflow: hidden;
-  }
-  .lw-logo img { width: 18px; height: 18px; object-fit: contain; }
-  .lw-strip .txt { flex: 1; color: var(--lw-ink); min-width: 0; }
-  .lw-strip .cta { color: #FFC46B; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
-  .lw-strip .via { font-size: 11px; color: var(--lw-ink-faint); white-space: nowrap; flex-shrink: 0; }
+  .sponsored-widget .tile img { width: 100%; height: 100%; object-fit: contain; }
+  .sponsored-widget .text { font-size: 13px; line-height: 1.45; }
+  .sponsored-widget .text a { color: #fff; font-weight: 700; text-decoration: underline; text-decoration-color: #fff; text-underline-offset: 2px; }
+  .sponsored-widget .footer { margin-top: 9px; border-top: 1px solid rgba(255,255,255,.25); padding-top: 7px; font-size: 10px; opacity: .8; }
+  .sponsored-widget .footer b { font-weight: 700; }
 
   section + section { margin-top: 32px; }
   h2 {
-    font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-    color: var(--lw-ink-faint); margin: 0 0 4px;
+    font-family: var(--font-display); font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted-fg); margin: 0 0 4px;
   }
 </style>
 </head>
 <body>
+<nav class="pill-nav">
+  <div class="pill-nav-inner">
+    <a class="pill-nav-brand" href="https://getlulu.dev">
+      <span class="dot"></span>
+      <span>Lulu Ads</span>
+    </a>
+    <div class="pill-nav-links">
+      <a href="./" class="active">Manual demo</a>
+      <a href="demo">Chat demo</a>
+    </div>
+  </div>
+</nav>
 <main>
 <header>
-  <a class="wordmark" href="https://getlulu.dev">Powered by <b>Lulu Ads</b></a>
   <h1>WebMCP</h1>
   <p>Two real WebMCP tools for planning a trip — real live weather from
   <a href="https://open-meteo.com">Open-Meteo</a>, plus flight search with a
@@ -124,7 +173,10 @@
   <h2>Weather at your destination</h2>
   <div class="lw-card">
     <div class="lw-body">
-      <div class="lw-eyebrow">get_weather</div>
+      <div class="tool-eyebrow-row">
+        <span class="lw-eyebrow">get_weather</span>
+        <span class="mcp-badge"><span class="dot"></span>MCP tool</span>
+      </div>
       <div class="lw-controls">
         <input id="city" value="Bangkok" placeholder="City">
         <button id="run-weather">Run</button>
@@ -138,7 +190,10 @@
   <h2>Flights</h2>
   <div class="lw-card">
     <div class="lw-body">
-      <div class="lw-eyebrow">search_flights</div>
+      <div class="tool-eyebrow-row">
+        <span class="lw-eyebrow">search_flights</span>
+        <span class="mcp-badge"><span class="dot"></span>MCP tool</span>
+      </div>
       <div class="lw-controls">
         <input id="origin" value="TLV" placeholder="Origin">
         <input id="destination" value="BKK" placeholder="Destination">
@@ -162,17 +217,47 @@
     if (out.error) {
       el.innerHTML = "";
       const p = document.createElement("p");
+      p.style.color = "var(--muted-fg)";
+      p.style.fontSize = "13px";
       p.textContent = out.error; // untrusted (echoes user-typed city) -- textContent, never innerHTML
       el.appendChild(p);
       return;
     }
-    el.innerHTML = `
-      <div class="stat">${out.temperature_c}°C</div>
-      <div class="lw-row"><span>Feels like</span><span>${out.feels_like_c}°C</span></div>
-      <div class="lw-row"><span>Conditions</span><span>${out.conditions}</span></div>
-      <p class="lw-attr">${out.attribution}</p>
-    `;
+    el.innerHTML = "";
+    const stat = document.createElement("div");
+    stat.className = "stat";
+    stat.textContent = `${out.temperature_c}°C`;
+    el.appendChild(stat);
+    for (const [label, value] of [["Feels like", `${out.feels_like_c}°C`], ["Conditions", out.conditions]]) {
+      const row = document.createElement("div");
+      row.className = "lw-row";
+      const left = document.createElement("span");
+      left.textContent = label;
+      const right = document.createElement("span");
+      right.textContent = String(value);
+      row.append(left, right);
+      el.appendChild(row);
+    }
+    const attr = document.createElement("p");
+    attr.className = "lw-attr";
+    attr.textContent = out.attribution;
+    el.appendChild(attr);
   });
+
+  function safeUrl(raw) {
+    try {
+      const parsed = new URL(raw, window.location.href);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.href;
+    } catch { /* malformed -- treat as absent */ }
+    return null;
+  }
+  function safeImgUrl(raw) {
+    try {
+      const parsed = new URL(raw, window.location.href);
+      if (parsed.protocol === "https:" || parsed.protocol === "data:") return parsed.href;
+    } catch { /* malformed -- treat as absent */ }
+    return null;
+  }
 
   document.getElementById("run-flights").addEventListener("click", async () => {
     const origin = document.getElementById("origin").value || "TLV";
@@ -200,54 +285,52 @@
       // it into innerHTML. Build the DOM directly, only ever assign
       // .textContent for text, and only assign .href/.src after validating
       // the URL parses and uses http(s) or data: (logos only) -- never a
-      // javascript: URL. Same pattern reviewed and approved for this repo.
-      const strip = document.createElement("div");
-      strip.className = "lw-strip";
+      // javascript: URL. Same SponsoredWidgetCard markup as demo.html.
+      const card = document.createElement("div");
+      card.className = "sponsored-widget";
 
-      const badge = document.createElement("span");
-      badge.className = "badge";
-      badge.textContent = "SPONSORED";
-      strip.appendChild(badge);
+      const eyebrow = document.createElement("div");
+      eyebrow.className = "eyebrow";
+      eyebrow.textContent = "Sponsored";
+      card.appendChild(eyebrow);
 
-      if (out.sponsored.logoUrl) {
-        try {
-          const logoUrl = new URL(out.sponsored.logoUrl, window.location.href);
-          if (logoUrl.protocol === "https:" || logoUrl.protocol === "data:") {
-            const logo = document.createElement("span");
-            logo.className = "lw-logo";
-            const img = document.createElement("img");
-            img.src = logoUrl.href;
-            img.alt = "";
-            logo.appendChild(img);
-            strip.appendChild(logo);
-          }
-        } catch { /* malformed logo URL -- skip it, strip still renders without one */ }
+      const row = document.createElement("div");
+      row.className = "row";
+
+      const tile = document.createElement("span");
+      tile.className = "tile";
+      const logoUrl = out.sponsored.logoUrl ? safeImgUrl(out.sponsored.logoUrl) : null;
+      if (logoUrl) {
+        const img = document.createElement("img");
+        img.src = logoUrl;
+        img.alt = "";
+        tile.appendChild(img);
+      } else {
+        tile.textContent = (out.sponsored.text?.trim()?.charAt(0) || "L").toUpperCase();
       }
+      row.appendChild(tile);
 
-      const txt = document.createElement("span");
-      txt.className = "txt";
-      txt.textContent = out.sponsored.text;
-      strip.appendChild(txt);
-
-      let safeUrl = null;
-      try {
-        const parsed = new URL(out.sponsored.url, window.location.href);
-        if (parsed.protocol === "http:" || parsed.protocol === "https:") safeUrl = parsed.href;
-      } catch { /* malformed URL -- skip the link */ }
-      if (safeUrl) {
-        const link = document.createElement("a");
-        link.className = "cta";
-        link.href = safeUrl;
-        link.textContent = "Learn more →";
-        strip.appendChild(link);
+      const text = document.createElement("span");
+      text.className = "text";
+      text.textContent = `${out.sponsored.text} `;
+      const link = safeUrl(out.sponsored.url);
+      if (link) {
+        const a = document.createElement("a");
+        a.href = link;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = "Learn more →";
+        text.appendChild(a);
       }
+      row.appendChild(text);
+      card.appendChild(row);
 
-      const via = document.createElement("span");
-      via.className = "via";
-      via.textContent = "via Lulu Ads";
-      strip.appendChild(via);
+      const footer = document.createElement("div");
+      footer.className = "footer";
+      footer.append("Powered by ", Object.assign(document.createElement("b"), { textContent: "Lulu Ads" }));
+      card.appendChild(footer);
 
-      sponsoredEl.appendChild(strip);
+      sponsoredEl.appendChild(card);
     }
   });
 </script>

@@ -13,11 +13,25 @@ const suggestions = document.getElementById("suggestions");
 
 const messages = [];
 
+// Running trip state -- once both a destination's weather and a flight
+// search exist in the conversation, renderTripSummary() closes the loop
+// with a single recommendation card instead of leaving two disconnected
+// tool cards for the user to reconcile themselves.
+let weatherState = null;
+let flightsState = null;
+let tripSummaryRendered = false;
+
 function scrollToBottom() {
   thread.scrollTop = thread.scrollHeight;
 }
 
 function addBubble(role, text) {
+  if (role === "assistant") {
+    const label = document.createElement("div");
+    label.className = "msg-label";
+    label.textContent = "🌷 Tulip Trips";
+    thread.appendChild(label);
+  }
   const row = document.createElement("div");
   row.className = `msg ${role}`;
   const bubble = document.createElement("div");
@@ -72,14 +86,11 @@ function renderWeatherCard(result) {
   const body = document.createElement("div");
   body.className = "tool-body";
 
-  const eyebrow = document.createElement("div");
-  eyebrow.className = "tool-eyebrow";
-  eyebrow.textContent = "get_weather";
-  body.appendChild(eyebrow);
+  body.appendChild(mcpEyebrow("get_weather"));
 
   if (result.error) {
     const p = document.createElement("p");
-    p.style.color = "var(--lw-ink-soft)";
+    p.style.color = "var(--muted-fg)";
     p.style.fontSize = "13px";
     p.style.margin = "0";
     p.textContent = result.error;
@@ -117,61 +128,81 @@ function renderWeatherCard(result) {
   return card;
 }
 
-function renderSponsoredStrip(sponsored) {
-  const strip = document.createElement("div");
-  strip.className = "lw-strip";
+// Ported 1:1 from ads-web/components/cruip/sponsored-brand.tsx's
+// SponsoredWidgetCard -- the actual live MCP Apps widget rendered inside
+// every real Lulu Ads sponsored slot (verified live in Claude), not a
+// bespoke "ad strip" invented for this demo. Full gradient card, plain
+// small-caps "Sponsored" eyebrow, brand tile (logo or monogram fallback),
+// "Powered by Lulu Ads" footer.
+function renderSponsoredWidget(sponsored) {
+  const card = document.createElement("div");
+  card.className = "sponsored-widget";
 
-  const badge = document.createElement("span");
-  badge.className = "badge";
-  badge.textContent = "SPONSORED";
-  strip.appendChild(badge);
+  const eyebrow = document.createElement("div");
+  eyebrow.className = "eyebrow";
+  eyebrow.textContent = "Sponsored";
+  card.appendChild(eyebrow);
 
-  if (sponsored.logoUrl) {
-    const logoUrl = safeImgUrl(sponsored.logoUrl);
-    if (logoUrl) {
-      const logo = document.createElement("span");
-      logo.style.width = "22px";
-      logo.style.height = "22px";
-      logo.style.borderRadius = "6px";
-      logo.style.background = "#fff";
-      logo.style.display = "flex";
-      logo.style.alignItems = "center";
-      logo.style.justifyContent = "center";
-      logo.style.flexShrink = "0";
-      logo.style.overflow = "hidden";
-      const img = document.createElement("img");
-      img.src = logoUrl;
-      img.alt = "";
-      img.style.width = "15px";
-      img.style.height = "15px";
-      img.style.objectFit = "contain";
-      logo.appendChild(img);
-      strip.appendChild(logo);
-    }
+  const row = document.createElement("div");
+  row.className = "row";
+
+  const tile = document.createElement("span");
+  tile.className = "tile";
+  const logoUrl = sponsored.logoUrl ? safeImgUrl(sponsored.logoUrl) : null;
+  if (logoUrl) {
+    const img = document.createElement("img");
+    img.src = logoUrl;
+    img.alt = "";
+    tile.appendChild(img);
+  } else {
+    tile.textContent = (sponsored.text?.trim()?.charAt(0) || "L").toUpperCase();
   }
+  row.appendChild(tile);
 
-  const txt = document.createElement("span");
-  txt.className = "txt";
-  txt.textContent = sponsored.text;
-  strip.appendChild(txt);
-
+  const text = document.createElement("span");
+  text.className = "text";
+  text.textContent = `${sponsored.text} `;
   const link = safeUrl(sponsored.url);
   if (link) {
     const a = document.createElement("a");
-    a.className = "cta";
     a.href = link;
     a.target = "_blank";
     a.rel = "noopener noreferrer";
     a.textContent = "Learn more →";
-    strip.appendChild(a);
+    text.appendChild(a);
   }
+  row.appendChild(text);
+  card.appendChild(row);
 
-  const via = document.createElement("span");
-  via.className = "via";
-  via.textContent = "via Lulu Ads";
-  strip.appendChild(via);
+  const footer = document.createElement("div");
+  footer.className = "footer";
+  footer.append("Powered by ", Object.assign(document.createElement("b"), { textContent: "Lulu Ads" }));
+  card.appendChild(footer);
 
-  return strip;
+  return card;
+}
+
+// Small pill identifying the card's contents as a real MCP tool call
+// result, matching the rounded-full/uppercase/extrabold badge language
+// used across ads-web (components/mcps/server-card.tsx's BadgeChips,
+// RegistryPills) -- not a bespoke label.
+function mcpEyebrow(toolName) {
+  const row = document.createElement("div");
+  row.className = "tool-eyebrow-row";
+
+  const eyebrow = document.createElement("span");
+  eyebrow.className = "tool-eyebrow";
+  eyebrow.textContent = toolName;
+  row.appendChild(eyebrow);
+
+  const badge = document.createElement("span");
+  badge.className = "mcp-badge";
+  const dot = document.createElement("span");
+  dot.className = "dot";
+  badge.append(dot, "MCP tool");
+  row.appendChild(badge);
+
+  return row;
 }
 
 function renderFlightsCard(result) {
@@ -180,10 +211,7 @@ function renderFlightsCard(result) {
   const body = document.createElement("div");
   body.className = "tool-body";
 
-  const eyebrow = document.createElement("div");
-  eyebrow.className = "tool-eyebrow";
-  eyebrow.textContent = "search_flights";
-  body.appendChild(eyebrow);
+  body.appendChild(mcpEyebrow("search_flights"));
 
   for (const f of result.flights ?? []) {
     const row = document.createElement("div");
@@ -199,17 +227,103 @@ function renderFlightsCard(result) {
   card.appendChild(body);
 
   if (result.sponsored) {
-    card.appendChild(renderSponsoredStrip(result.sponsored));
+    card.appendChild(renderSponsoredWidget(result.sponsored));
   }
 
   return card;
 }
 
+// Closing card: once the conversation has both a destination's weather and
+// a flight search, tie them into one recommendation -- cheapest flight by
+// default, called out as the "pick" -- instead of leaving two disconnected
+// cards. City name and flight destination airport aren't reconciled (a
+// typed city and an IATA code aren't reliably the same string), so both
+// are shown as their own facts rather than claiming a false match.
+function renderTripSummary() {
+  if (!weatherState || !flightsState) return;
+  const flights = flightsState.result.flights ?? [];
+  if (!flights.length) return;
+  const pick = [...flights].sort((a, b) => a.price_usd - b.price_usd)[0];
+
+  const card = document.createElement("div");
+  card.className = "trip-summary";
+
+  const head = document.createElement("div");
+  head.className = "head";
+  const flag = document.createElement("span");
+  flag.className = "flag";
+  flag.textContent = "🧳";
+  const title = document.createElement("span");
+  title.className = "title";
+  title.textContent = "Trip summary";
+  head.append(flag, title);
+  card.appendChild(head);
+
+  const body = document.createElement("div");
+  body.className = "body";
+
+  const weatherFact = document.createElement("div");
+  weatherFact.className = "fact";
+  const wIc = document.createElement("span");
+  wIc.className = "ic";
+  wIc.textContent = "☀️";
+  const wText = document.createElement("span");
+  if (weatherState.result.error) {
+    wText.textContent = `Weather for ${weatherState.city}: unavailable`;
+  } else {
+    wText.append(
+      `${weatherState.city}: `,
+      Object.assign(document.createElement("b"), { textContent: `${weatherState.result.temperature_c}°C` }),
+      `, ${weatherState.result.conditions}`,
+    );
+  }
+  weatherFact.append(wIc, wText);
+  body.appendChild(weatherFact);
+
+  const flightFact = document.createElement("div");
+  flightFact.className = "fact";
+  const fIc = document.createElement("span");
+  fIc.className = "ic";
+  fIc.textContent = "✈️";
+  const fText = document.createElement("span");
+  fText.append(
+    `${flightsState.origin} → ${flightsState.destination}: ${pick.airline} ${pick.flight_number} — `,
+    Object.assign(document.createElement("b"), { textContent: `$${pick.price_usd}` }),
+    " (best value)",
+  );
+  flightFact.append(fIc, fText);
+  body.appendChild(flightFact);
+
+  const reco = document.createElement("div");
+  reco.className = "reco";
+  reco.textContent = `Tulip Trips pick: ${pick.airline} ${pick.flight_number} pairs well with ${weatherState.result.conditions ?? "the forecast"} in ${weatherState.city} -- pack accordingly.`;
+  body.appendChild(reco);
+
+  const saveRow = document.createElement("div");
+  saveRow.className = "save-row";
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.className = "save-btn";
+  saveBtn.textContent = "Save trip";
+  saveBtn.addEventListener("click", () => {
+    saveBtn.textContent = "Saved ✓";
+    saveBtn.classList.add("saved");
+    saveBtn.disabled = true;
+  });
+  saveRow.appendChild(saveBtn);
+  body.appendChild(saveRow);
+
+  card.appendChild(body);
+  thread.appendChild(card);
+}
+
 function renderToolCall(call) {
   if (call.name === "get_weather") {
     thread.appendChild(renderWeatherCard(call.result));
+    weatherState = { city: call.args.city, result: call.result };
   } else if (call.name === "search_flights") {
     thread.appendChild(renderFlightsCard(call.result));
+    flightsState = { origin: call.args.origin, destination: call.args.destination, result: call.result };
   }
 }
 
@@ -237,11 +351,20 @@ async function sendMessage(text) {
       return;
     }
 
-    for (const call of data.toolCalls ?? []) {
+    const toolCalls = data.toolCalls ?? [];
+    for (const call of toolCalls) {
       renderToolCall(call);
     }
     addBubble("assistant", data.reply || "…");
     messages.push({ role: "assistant", content: data.reply || "" });
+
+    // Close the loop once, the first time both pieces are in place --
+    // repeating it on every later message (e.g. a follow-up question)
+    // would just be noise.
+    if (toolCalls.length && weatherState && flightsState && !tripSummaryRendered) {
+      renderTripSummary();
+      tripSummaryRendered = true;
+    }
   } catch {
     removeTyping();
     addBubble("assistant", "Sorry, I couldn't reach the server. Try again in a moment.");
