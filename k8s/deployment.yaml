@@ -43,6 +43,15 @@ spec:
                 secretKeyRef:
                   name: lulu-secrets
                   key: WEBMCP_ADS_API_KEY
+            # @ai-sdk/google's google() provider reads this exact env var
+            # name by default (no createGoogleGenerativeAI({apiKey}) here) --
+            # same lulu-secrets key every other Gemini-calling TS service in
+            # this org (app/api/provision, inngest/agent-provision.ts) reads.
+            - name: GOOGLE_GENERATIVE_AI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lulu-secrets
+                  key: GOOGLE_GENERATIVE_AI_API_KEY
           resources:
             requests:
               cpu: 100m

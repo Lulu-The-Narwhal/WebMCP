@@ -14,6 +14,7 @@ import { dirname } from "node:path";
 import { LuluAds } from "lulu-ads";
 import { createSponsoredSlotHandler } from "./functions/_lib/sponsored-slot.js";
 import { getCurrentWeather } from "./functions/_lib/open-meteo.js";
+import { runChat, type ChatMessage } from "./functions/_lib/chat.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 8080;
@@ -38,7 +39,7 @@ const MIME: Record<string, string> = {
 };
 
 async function serveStatic(pathname: string, res: http.ServerResponse): Promise<void> {
-  const relPath = pathname === "/" ? "/index.html" : pathname;
+  const relPath = pathname === "/" ? "/index.html" : pathname === "/demo" ? "/demo.html" : pathname;
   const fullPath = normalize(join(PUBLIC_DIR, relPath));
   if (!fullPath.startsWith(PUBLIC_DIR)) {
     res.writeHead(403);
@@ -47,13 +48,15 @@ async function serveStatic(pathname: string, res: http.ServerResponse): Promise<
   }
   try {
     let data: Buffer | string = await readFile(fullPath);
-    // index.html's own relative asset/API references (trip.js, api/...)
-    // resolve against the DOCUMENT's URL -- under a path prefix that only
-    // works if the document was actually loaded from a trailing-slash URL
+    // A page's own relative asset/API references (trip.js, api/...) resolve
+    // against the DOCUMENT's URL -- under a path prefix that only works if
+    // the document was actually loaded from a trailing-slash URL
     // (ads.getlulu.dev/webmcp/, not .../webmcp). The redirect above already
     // guarantees that for direct navigation, but <base> makes every
     // relative reference correct unconditionally, belt-and-suspenders.
-    if (BASE_PATH && fullPath === join(PUBLIC_DIR, "index.html")) {
+    // Applies to every top-level HTML entry point (index.html, demo.html),
+    // not just the root page.
+    if (BASE_PATH && (fullPath === join(PUBLIC_DIR, "index.html") || fullPath === join(PUBLIC_DIR, "demo.html"))) {
       data = data.toString("utf8").replace("<head>", `<head>\n<base href="${BASE_PATH}/">`);
     }
     res.writeHead(200, { "content-type": MIME[extname(fullPath)] ?? "application/octet-stream" });
@@ -114,6 +117,31 @@ const server = http.createServer(async (req, res) => {
       const result = await handleSponsoredSlot(parsed);
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(result));
+    });
+    return;
+  }
+
+  if (routePath === "/api/chat" && req.method === "POST") {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", async () => {
+      let messages: ChatMessage[] = [];
+      try {
+        const parsed = JSON.parse(body);
+        if (Array.isArray(parsed?.messages)) messages = parsed.messages;
+      } catch {
+        // malformed body -> empty messages, runChat/generateText will just
+        // reply conversationally with no history
+      }
+      try {
+        const result = await runChat(messages);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(result));
+      } catch (err) {
+        console.error("[api/chat] runChat failed:", err);
+        res.writeHead(502, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "chat backend failed" }));
+      }
     });
     return;
   }
