@@ -116,11 +116,14 @@
   /* SponsoredWidgetCard, ported 1:1 from
      components/cruip/sponsored-brand.tsx -- the actual live MCP Apps
      widget every real sponsored slot renders as. */
+  /* Footer band of the SAME lw-card, not a second nested card -- flush
+     against the result above (no inset margin/radius/shadow of its own),
+     clipped to the card's own bottom corners by .lw-card's
+     overflow:hidden. One widget, one shape. */
   .sponsored-widget {
-    margin: 0 22px 20px; border-radius: 14px; padding: 14px 16px;
+    margin-top: 14px; padding: 12px 22px;
     background: linear-gradient(135deg, var(--amber-light) 0%, var(--amber) 55%, var(--amber-dark) 100%);
-    border: 1px solid rgba(255,255,255,.22);
-    box-shadow: 0 1px 2px rgba(0,0,0,.22), 0 10px 24px -10px rgba(224,122,0,.65);
+    border-top: 1px solid rgba(255,255,255,.18);
     color: #FFF8EC;
   }
   .sponsored-widget .eyebrow { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; opacity: .92; margin-bottom: 5px; }
